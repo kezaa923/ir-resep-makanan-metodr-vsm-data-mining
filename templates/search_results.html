@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results - Recipe Search Engine</title>
+
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --warning: #e67e22;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --bg: #f5f7fa;
+            --card: #ffffff;
+            --border: #e0e0e0;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-dark);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 30px 20px;
+        }
+
+        /* ================= NAV ================= */
+        .nav {
+            margin-bottom: 25px;
+        }
+
+        .nav a {
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: 500;
+            margin-right: 20px;
+        }
+
+        .nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* ================= HEADER ================= */
+        .header {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            margin: 0 0 10px;
+        }
+
+        .header p {
+            color: var(--text-light);
+            margin-bottom: 20px;
+        }
+
+        /* ================= SEARCH FORM ================= */
+        .search-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .search-form input {
+            flex: 1;
+            min-width: 250px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: 15px;
+        }
+
+        .search-form button {
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .search-form button:hover {
+            background: #2980b9;
+        }
+
+        /* ================= RESULT CARD ================= */
+        .result {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .result:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.06);
+        }
+
+        .result h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .score {
+            color: var(--warning);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .file-info {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .preview {
+            margin: 12px 0;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .matched-terms {
+            color: var(--secondary);
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .result a {
+            text-decoration: none;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .result a:hover {
+            text-decoration: underline;
+        }
+
+        /* ================= EMPTY STATE ================= */
+        .empty {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 50px;
+            text-align: center;
+            border: 1px dashed var(--border);
+        }
+
+        /* ================= STATS ================= */
+        .stats {
+            margin-top: 40px;
+            background: var(--card);
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .stats h3 {
+            margin-top: 0;
+        }
+
+        .stats p {
+            margin: 6px 0;
+            color: var(--text-light);
+        }
+
+        /* ================= RESPONSIVE ================= */
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <!-- Navigation -->
+        <div class="nav">
+            <a href="/">🏠 Home</a>
+            <a href="javascript:history.back()">← Back</a>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <h1> Search Results</h1>
+            <p>
+                Query: <strong>"{{ query }}"</strong> |
+                Found: <strong>{{ results|length }}</strong> results |
+                Min Score: {{ min_score }}
+            </p>
+
+            <form action="/search" method="get" class="search-form">
+                <input type="text" name="q" value="{{ query }}" placeholder="Search recipes...">
+                <button type="submit">Search</button>
+            </form>
+        </div>
+
+        <!-- Results -->
+        {% if results %}
+            {% for result in results %}
+                <div class="result">
+                    <h3>
+                        {{ loop.index }}. {{ result.title }}
+                        <span class="score">(Score: {{ result.score|format_score }})</span>
+                    </h3>
+
+                    <div class="file-info">
+                         {{ result.filename }} |
+                         {{ result.category }} |
+                         {{ result.size_kb|round(1) }} KB
+                    </div>
+
+                    {% if result.preview %}
+                        <div class="preview">
+                            {{ result.preview|truncate(200) }}
+                        </div>
+                    {% endif %}
+
+                    {% if result.matched_terms %}
+                        <div class="matched-terms">
+                             Matched terms: {{ result.matched_terms|join(', ') }}
+                        </div>
+                    {% endif %}
+
+                    <a href="/document/by-filename/{{ result.filename }}" target="_blank">
+                         View Document
+                    </a>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty">
+                <h3> No results found</h3>
+                <p>Try a different search query or upload more documents.</p>
+                <a href="/upload">⬆ Upload Files</a>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
