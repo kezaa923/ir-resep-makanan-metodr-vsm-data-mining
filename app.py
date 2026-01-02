@@ -249,64 +249,58 @@ def view_document(doc_id):
 
 @app.route('/document/by-filename/<filename>')
 def view_document_by_filename(filename):
-    """View document by filename - DIRECT FILE VIEW"""
+    """View document by filename - Menangani PDF (Iframe), TXT (Viewer), dan lainnya (Download)"""
+    
+    # 1. Pastikan Search Engine aktif
     engine = get_search_engine()
     if not engine:
         flash('❌ Search engine not available', 'error')
         return redirect(url_for('index'))
     
+    # 2. Cari data dokumen di dalam index/database
     document = engine.get_document_by_filename(filename)
     if not document:
         flash(f'❌ Document "{filename}" not found', 'error')
         return redirect(url_for('index'))
     
-    # Cek apakah file ada
+    # 3. Validasi keberadaan file di folder fisik (uploads)
     filepath = document.get('filepath')
     if not filepath or not os.path.exists(filepath):
-        flash(f'❌ File "{filename}" not found on disk', 'error')
+        flash(f'❌ File "{filename}" tidak ditemukan di server', 'error')
         return redirect(url_for('index'))
     
-    # Langsung redirect ke file untuk PDF/TXT
-    # Atau tampilkan content untuk TXT
-    if filename.lower().endswith('.pdf'):
-        # Untuk PDF, buka di browser/tab baru
-        from flask import send_file
-        try:
-            return send_file(filepath, as_attachment=False)
-        except Exception as e:
-            flash(f'❌ Error opening PDF: {e}', 'error')
-            return redirect(url_for('index'))
-    
-    elif filename.lower().endswith('.txt'):
-        # Untuk TXT, tampilkan dalam HTML
+    from flask import send_file # Import di sini untuk memastikan fungsi tersedia
+
+    # ==========================================
+    # LOGIKA UNTUK FILE TXT
+    # ==========================================
+    if filename.lower().endswith('.txt'):
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
                 content = f.read()
             
-            # Simple HTML untuk display text
             html_content = f"""
             <!DOCTYPE html>
             <html>
             <head>
-                <title>{filename} - Recipe Search Engine</title>
+                <title>{filename} - Viewer</title>
                 <style>
-                    body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
-                    .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-                    pre {{ white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 20px; border-radius: 5px; border: 1px solid #ddd; }}
-                    .nav {{ margin-bottom: 20px; }}
-                    .nav a {{ color: #3498db; text-decoration: none; margin-right: 15px; }}
+                    body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 40px; background: #f0f2f5; }}
+                    .container {{ max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }}
+                    pre {{ white-space: pre-wrap; word-wrap: break-word; background: #f8f9fa; padding: 25px; border-radius: 8px; border: 1px solid #e1e4e8; line-height: 1.6; font-size: 15px; }}
+                    .nav {{ margin-bottom: 25px; display: flex; gap: 15px; }}
+                    .nav a {{ color: #3498db; text-decoration: none; font-weight: 600; }}
+                    h1 {{ color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
                 </style>
             </head>
             <body>
                 <div class="container">
                     <div class="nav">
-                        <a href="/"> Home</a>
-                        <a href="javascript:history.back()">← Back</a>
-                        
-                    <h1> {filename}</h1>
-                    <p><strong>Path:</strong> {filepath}</p>
-                    <p><strong>Size:</strong> {os.path.getsize(filepath)} bytes</p>
-                    <hr>
+                        <a href="/">🏠 Home</a>
+                        <a href="{url_for('index')}">⬅️ Kembali</a>
+                    </div>
+                    <h1>📄 {filename}</h1>
+                    <p style="color: #666;">Ukuran File: {os.path.getsize(filepath)} bytes</p>
                     <pre>{content}</pre>
                 </div>
             </body>
@@ -314,13 +308,65 @@ def view_document_by_filename(filename):
             """
             return html_content
         except Exception as e:
-            flash(f'❌ Error reading TXT file: {e}', 'error')
+            flash(f'❌ Error membaca TXT: {e}', 'error')
             return redirect(url_for('index'))
-    
+
+    # ==========================================
+    # LOGIKA UNTUK FILE PDF (IFRAME)
+    # ==========================================
+    elif filename.lower().endswith('.pdf'):
+        try:
+            # Ambil parameter ?raw=true dari URL
+            raw = request.args.get('raw', 'false').lower() == 'true'
+            
+            if raw:
+                # Kirim data biner PDF asli ke iframe
+                return send_file(filepath, mimetype='application/pdf')
+            
+            # Jika akses biasa, tampilkan halaman pembungkus dengan Iframe
+            # URL ini akan memanggil rute ini lagi tapi dengan ?raw=true
+            pdf_url = url_for('view_document_by_filename', filename=filename, raw='true')
+            
+            html_content = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>{filename} - PDF Viewer</title>
+                <style>
+                    body {{ font-family: 'Segoe UI', sans-serif; margin: 0; background: #525659; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }}
+                    .navbar {{ background: white; padding: 12px 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; z-index: 100; }}
+                    .navbar a {{ color: #3498db; text-decoration: none; margin-right: 20px; font-weight: bold; }}
+                    .navbar span {{ color: #444; font-weight: 500; }}
+                    .iframe-container {{ flex-grow: 1; position: relative; }}
+                    iframe {{ width: 100%; height: 100%; border: none; }}
+                </style>
+            </head>
+            <body>
+                <div class="navbar">
+                    <a href="/">🏠 Home</a>
+                    <a href="{url_for('index')}">⬅️ Kembali</a>
+                    <span>📄 Menampilkan: <strong>{filename}</strong></span>
+                </div>
+                <div class="iframe-container">
+                    <iframe src="{pdf_url}"></iframe>
+                </div>
+            </body>
+            </html>
+            """
+            return html_content
+        except Exception as e:
+            flash(f'❌ Gagal menampilkan PDF: {e}', 'error')
+            return redirect(url_for('index'))
+
+    # ==========================================
+    # LOGIKA UNTUK FILE LAINNYA (DOWNLOAD)
+    # ==========================================
     else:
-        # Untuk file type lainnya
-        from flask import send_file
-        return send_file(filepath, as_attachment=True)
+        try:
+            return send_file(filepath, as_attachment=True)
+        except Exception as e:
+            flash(f'❌ Gagal mengunduh file: {e}', 'error')
+            return redirect(url_for('index'))
 @app.route('/api/search')
 def api_search():
     """API endpoint for search (returns JSON)"""

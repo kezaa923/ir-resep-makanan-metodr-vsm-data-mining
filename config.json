@@ -1,0 +1,16 @@
+{
+    "app": {
+      "name": "Recipe Search Engine",
+      "version": "1.0.0",
+      "debug": true
+    },
+    "search": {
+      "use_stemming": true,
+      "cache_enabled": true,
+      "default_top_k": 10,
+      "min_score": 0.0
+    },
+    "paths": {
+      "cache_file": "data/search_cache.pkl"
+    }
+  }
