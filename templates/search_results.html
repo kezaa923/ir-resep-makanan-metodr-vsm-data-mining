@@ -223,7 +223,8 @@
                     <div class="file-info">
                          {{ result.filename }} |
                          {{ result.category }} |
-                         {{ result.size_kb|round(1) }} KB
+                         {{ result.size_kb|default(0)|round(1) }} KB
+
                     </div>
 
                     {% if result.preview %}
